@@ -3,7 +3,9 @@
 import sys
 import threading
 
-from sockets import read_topology_file_server_lines, read_topology_file_costs, start_server, send_updates_on_interval, create_initial_routing_table, debug_print_list
+from sockets import read_topology_file_server_lines, read_topology_file_costs, start_server, create_initial_routing_table
+from sockets import send_updates_on_interval
+from sockets import packets_since_last_call, send_data_now, disable_connection, server_crash
 from sockets import print_routing_table
 
 # [0] = dv.py | [1] = topology.txt | [2] = interval
@@ -19,7 +21,7 @@ rout_update_interval = float(sys.argv[2])
 
 
 
-print(top_file_all_lines)
+print(top_file_all_lines) # dglkhmg hglnghlllllllllllllllllllllllllllllllllllllllllllllllllllljhhjk 
 
 
 
@@ -35,7 +37,7 @@ print("Debug: num_of_neighbors =", num_of_neighbors)
 
 
 
-print(top_file_all_lines[2:6])
+print(top_file_all_lines[2:6]) # dglkhmg hglnghlllllllllllllllllllllllllllllllllllllllllllllllllllljhhjk 
 
 
 
@@ -55,9 +57,54 @@ for i in range(6,len(top_file_all_lines)):
 # Initialize this machine's routing table.
 create_initial_routing_table(server_id)
 
-
-interval_thread = threading.Thread(target=send_updates_on_interval,args=(rout_update_interval, server_id))
+# Start sending out distance vector data over the given interval.
+interval_thread = threading.Thread(target=send_updates_on_interval,args=(rout_update_interval, server_id), daemon=True)
 interval_thread.start()
 
-# debug_print_list()
-print_routing_table()
+# Loop on the main thread for user commands.
+inUserLoop = True
+
+while inUserLoop:
+    print("Execute a user command by typing.")
+
+    # Taking input from the user; commands are either 1, 2, or 4 values.
+    next = input().split(" ", 3)
+
+    # If the command is a single string. (i.e. step, packets, display, and crash)
+    if len(next) == 1:
+        match next[0]:
+            case "step":
+                send_data_now(server_id)
+            case "packets":
+                packets_since_last_call()
+            case "display":
+                print_routing_table()
+            case "crash":
+                server_crash()
+            case "exit":
+                print("All threads terminating. Program closing.")
+                inUserLoop = False
+            case _:
+                print("Command not recognized.")
+            
+    # If the command is two values. (i.e. disable <server-id>)
+    elif len(next) == 2:
+        match next[0]:
+            case "disable":
+                # Pass the id of client to disable.
+                disable_connection(next[1])
+            case _:
+                print("Command not recognized.")
+
+    # If the command is four values. (i.e. update <server-id1> <server-id2> <link cost>)
+    elif len(next) == 4:
+        match next[0]:
+            case "update":
+                print("updateeeeeeeeeeeeee")
+            case _:
+                print("Command not recognized.")
+
+    else:
+        print("Command not recognized.")
+
+    
