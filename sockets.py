@@ -4,12 +4,15 @@ import pickle
 import time
 import sys
 
-list_of_ids_from_clients = []                   # All machine's will end up with the same lists of ids, ips, and ports considering the topology file format.
+list_of_ids_from_clients = []       # All machine's will end up with the same lists of ids, ips, and ports considering the topology file format.
 list_of_ips_from_clients = []
 list_of_ports_from_clients = []
-list_of_costs_from_clients = []                 # Format: [ [client_id, cost], ... ] for the number of machines in the network.
-                                                # Ex: [ [2, 7] , [3, 4] , [4, 5] ] for 4 machines. (Self machine (1) is excluded.)
-list_of_missed_interval_counts = [0, 0, 0, 0]
+list_of_costs_from_clients = []     # Format: [ [client_id, cost], ... ] for the number of machines in the network.
+                                        # Ex: [ [2, 7] , [3, 4] , [4, 5] ] for 4 machines. (Self machine (1) is excluded.)
+list_of_bool_disabled = []          # All machine's will end up with a list of the same length that corresponds with the other lists.
+         
+
+# list_of_missed_interval_counts = [0, 0, 0, 0]
 
 packets_received = 0
 neighbors = []
@@ -32,14 +35,15 @@ def read_topology_file_server_lines(line):
     server_ip = line[1]
     server_port = int(line[2])
 
-    print("server_id in read and establish =", server_id)
-    print("server_ip in read and establish =", server_ip)
-    print("server_port in read and establish =", server_port)
+    # print("server_id in read_topology_file_server_lines =", server_id)
+    # print("server_ip in read_topology_file_server_lines =", server_ip)
+    # print("server_port in read_topology_file_server_lines =", server_port)
 
     # Add to lists.
     list_of_ids_from_clients.append(server_id)
     list_of_ips_from_clients.append(server_ip)
     list_of_ports_from_clients.append(server_port)
+    list_of_bool_disabled.append(False)
 
 # Note: Using append because both read topology functions are called on start up. See dv.py file.
 
@@ -56,7 +60,7 @@ def read_topology_file_costs(line):
     list_of_costs_from_clients.append([client_id, cost])
 
     # A client is a neighbor if it is originally read from the topology file.
-    neighbors.append([client_id])
+    neighbors.append(client_id)
 
 
 def create_initial_routing_table(server_id):
@@ -86,10 +90,13 @@ def start_server(server_id, top_file_server_lines):
         if (int(server_line[0]) == server_id):
             server_ip = str(server_line[1])
             server_port = int(server_line[2])
+            list_of_bool_disabled[server_id - 1] = True     # Disable self.
 
 
     print("Debug: server_ip =", server_ip)
     print("Debug: server_port =", server_port)
+
+    
 
     # Start a thread that the server can listen on
     server_thread = threading.Thread(target=_start_server, args=(server_ip, server_port), daemon=True)
@@ -151,18 +158,21 @@ def send_updates_on_interval(rout_update_interval, server_id, isNow = False):
         # For every machine we can communicate with, ...
         for i in range(len(list_of_ids_from_clients)):
 
-            # serialize the server id and routing table data, ...
-            data_to_send = pickle.dumps([server_id, routing_table])
+            # and isn't disabled, ...
+            if not list_of_bool_disabled[i]:
 
-            # create a UDP socket, ...
-            sending_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                # serialize the server id and routing table data, ...
+                data_to_send = pickle.dumps([server_id, routing_table])
 
-            # and send the data to them. Don't need to send it to self.
-            if i != server_id - 1:
-                sending_socket.sendto(data_to_send, (list_of_ips_from_clients[i], list_of_ports_from_clients[i]))
+                # create a UDP socket, ...
+                sending_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-            # Close sending socket.
-            sending_socket.close()
+                # and send the data to them. Don't need to send it to self.
+                if i != server_id - 1:
+                    sending_socket.sendto(data_to_send, (list_of_ips_from_clients[i], list_of_ports_from_clients[i]))
+
+                # Close sending socket.
+                sending_socket.close()
         
         # If data was sent with send_data_now function, don't stay in the loop.
         if isNow:
@@ -174,33 +184,48 @@ def send_data_now(server_id):
 
 # Remove connection and stop sending data to the given client.
 def disable_connection(client_id):
+    print("Debug: ENTER disable_connection")
+
+    debug()
+
+    client_id = int(client_id)
 
     # If the machine to disable is not a neighbor.
     if (client_id not in neighbors):
         print("You can only disable connections between a NEIGHBORING machine.")
         return
     
-    # Find the index of the client and remove it from this machine's lists of connections and costs.
+    # Find the index of the client and disable the connection in the boolean list.
     try:
         index_of_client = list_of_ids_from_clients.index(client_id)
-        del list_of_ids_from_clients[index_of_client]
-        del list_of_ips_from_clients[index_of_client]
-        del list_of_ports_from_clients[index_of_client]
 
-        for cost_pair in list_of_costs_from_clients:
-            if client_id == cost_pair[0]:
-                del list_of_costs_from_clients[cost_pair]
+        list_of_bool_disabled[index_of_client] = True
+
+        # del list_of_ids_from_clients[index_of_client]
+        # del list_of_ips_from_clients[index_of_client]
+        # del list_of_ports_from_clients[index_of_client]
+
+        # for cost_pair in list_of_costs_from_clients:
+        #     print(str(cost_pair))
+        #     if client_id == cost_pair[0]:
+        #         index_of_cost_pair = list_of_costs_from_clients.index(cost_pair)
+        #         del list_of_costs_from_clients[index_of_cost_pair]
+
+        debug()
 
     # If the machine to disable's server id is invalid. (As long as this machine is not sending data to it, it is invalid.)
     except ValueError:
         print("The server id", client_id, "is not available or already disabled.")
 
-# Simulate server crash by removing all connections and costs.
+# Simulate server crash by disabling all connections.
 def server_crash():
-    list_of_ids_from_clients.clear()
-    list_of_ips_from_clients.clear()
-    list_of_ports_from_clients.clear()
-    list_of_costs_from_clients.clear()
+    print("Debug: ENTER server_crash.")
+    debug()
+    
+    for i in range(len(list_of_bool_disabled)):
+        list_of_bool_disabled[i] = True
+
+    debug()
 
 # Display this machine's current routing table.
 def print_routing_table():
@@ -216,5 +241,15 @@ def print_routing_table():
             else:
                 x += " " + str(routing_table[i][j])
         x += "]\n"
+
+    print(x)
+
+def debug():
+
+    x = "List of ids: " + str(list_of_ids_from_clients)
+    x += "\nList of ips: " + str(list_of_ips_from_clients)
+    x += "\nList of ports: " + str(list_of_ports_from_clients)
+    x += "\nList of costs: " + str(list_of_costs_from_clients)
+    x += "\nList of bool disabled: " + str(list_of_bool_disabled)
 
     print(x)

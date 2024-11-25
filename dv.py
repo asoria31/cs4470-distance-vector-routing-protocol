@@ -41,8 +41,6 @@ print(top_file_all_lines[2:6]) # dglkhmg hglnghlllllllllllllllllllllllllllllllll
 
 
 
-# Start the server on this machine, pass the connection lines from the topology file.
-start_server(server_id, top_file_all_lines[2:6])
 
 # Read the server information line by line in the topology file.
 for i in range(2,6):
@@ -53,6 +51,9 @@ for i in range(6,len(top_file_all_lines)):
     read_topology_file_costs(top_file_all_lines[i])
 
 # Done getting all info from topology file. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+# Start the server on this machine, pass the connection lines from the topology file.
+start_server(server_id, top_file_all_lines[2:6])
 
 # Initialize this machine's routing table.
 create_initial_routing_table(server_id)
