@@ -122,15 +122,15 @@ def _start_server(server_ip, server_port):
         # Using pickle library to serialize (dumps) and deserialize (loads) the data so that we can use a list format for easy use.
         data_received = pickle.loads(bytes_of_data)
         from_server_id = data_received[0]
-        recv_routing_table = data_received[1]
+        recv_data_updates = data_received[1]
         # Start a thread to process data so this function can continue listening.
-        thread_to_process_data = threading.Thread(target=process_data, args=(from_server_id, recv_routing_table, client_address), daemon=True)
+        thread_to_process_data = threading.Thread(target=process_data, args=(from_server_id, recv_data_updates, client_address), daemon=True)
         thread_to_process_data.start()
 
     server_socket.close()
 
-# Process the data taken from another machine. Update this machine's routing table. Update number of packets received.
-def process_data(from_server_id, recv_routing_table, client_address):
+# Process the data taken from another machine. Update this machine's routing table. Update link costs. Update number of packets received.
+def process_data(from_server_id, recv_data, client_address):
     print("\nDebug: ENTER process_data.\n")
     print("RECEIVED DATA FROM SERVER", from_server_id)
 
@@ -138,18 +138,73 @@ def process_data(from_server_id, recv_routing_table, client_address):
     global packets_received
     packets_received += 1
 
+    debug()
+
+    # Check if data being received is a link cost update. If so, update the link cost to the machine it is received from.
+    if len(recv_data) == 1:
+        link_cost = int(recv_data)
+        for cost_pair in list_of_costs_from_clients:
+            if cost_pair[0] == from_server_id:
+                cost_pair[1] = link_cost
+        return
+    
+    debug()
+    
+    # Else, the data being received is a routing taable.
+
+
     
 
-# Display the number of packets since the last time this function was called. Reset to 0.
-def packets_since_last_call():
+# Update the link cost between this machine and another.
+def update(server_id1, server_id2, link_cost, this_server_id):
+    print("\nDebug: ENTER update.\n")
 
-    global packets_received
-    print("This machine has received", packets_received, "packet(s) since the last check in.")
-    packets_received = 0
+    server_id1 = int(server_id1)
+    server_id2 = int(server_id2)
+    if link_cost == "inf":
+        link_cost = -1
+    link_cost = int(link_cost)
+    this_server_id = int(this_server_id)
+
+    # If the server ids are the same.
+    if (server_id1 == server_id2):
+        print("Cannot update a machine's cost to itself.")
+        return
+    
+    debug()
+    
+    sending_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    # If one of the servers to update is this machine's server, proceed. Acknowledge which id belongs to this machine.
+    if (server_id1 == this_server_id):
+        for cost_pair in list_of_costs_from_clients:
+            if cost_pair[0] == server_id2:
+                cost_pair[1] = link_cost
+
+        # Send updated link cost from this machine (server_id1) to the other machine (server_id2).
+        data_to_send = pickle.dumps([server_id1, link_cost])
+        sending_socket.sendto(data_to_send, (list_of_ips_from_clients[server_id2 - 1], list_of_ports_from_clients[server_id2 - 1]))
+
+    elif (server_id2 == this_server_id):
+        for cost_pair in list_of_costs_from_clients:
+            if cost_pair[0] == server_id1:
+                cost_pair[1] = link_cost
+
+        # Send updated link cost from this machine (server_id2) to the other machine (server_id1).
+        data_to_send = pickle.dumps([server_id2, link_cost])
+        sending_socket.sendto(data_to_send, (list_of_ips_from_clients[server_id1 - 1], list_of_ports_from_clients[server_id1 - 1]))
+
+    # If neither server id is this machine's, don't update since only the participating machines should update.
+    else:
+        print("This machine cannot update the link cost between two other machines. This server has id:", this_server_id)
+
+    sending_socket.close()
+
+    debug()
 
 # A thread is created on this function in dv.py file. It will continuously send out this machine's routing table data at the update interval.
-def send_updates_on_interval(rout_update_interval, server_id, isNow = False):
-    print("\nDebug: ENTER send_updates_on_interval.\n")
+def send_data_on_interval(rout_update_interval, server_id, isNow = False):
+    print("\nDebug: ENTER send_data_on_interval.\n")
 
     while True:
         time.sleep(rout_update_interval)
@@ -180,13 +235,18 @@ def send_updates_on_interval(rout_update_interval, server_id, isNow = False):
 
 # Send data immediately.
 def send_data_now(server_id):
-    send_updates_on_interval(0, server_id, True)
+    send_data_on_interval(0, server_id, True)
+
+# Display the number of packets since the last time this function was called. Reset to 0.
+def packets_since_last_call():
+
+    global packets_received
+    print("This machine has received", packets_received, "packet(s) since the last check in.")
+    packets_received = 0
 
 # Remove connection and stop sending data to the given client.
 def disable_connection(client_id):
-    print("Debug: ENTER disable_connection")
-
-    debug()
+    print("\nDebug: ENTER disable_connection.\n")
 
     client_id = int(client_id)
 
@@ -201,31 +261,16 @@ def disable_connection(client_id):
 
         list_of_bool_disabled[index_of_client] = True
 
-        # del list_of_ids_from_clients[index_of_client]
-        # del list_of_ips_from_clients[index_of_client]
-        # del list_of_ports_from_clients[index_of_client]
-
-        # for cost_pair in list_of_costs_from_clients:
-        #     print(str(cost_pair))
-        #     if client_id == cost_pair[0]:
-        #         index_of_cost_pair = list_of_costs_from_clients.index(cost_pair)
-        #         del list_of_costs_from_clients[index_of_cost_pair]
-
-        debug()
-
     # If the machine to disable's server id is invalid. (As long as this machine is not sending data to it, it is invalid.)
     except ValueError:
         print("The server id", client_id, "is not available or already disabled.")
 
 # Simulate server crash by disabling all connections.
 def server_crash():
-    print("Debug: ENTER server_crash.")
-    debug()
+    print("\nDebug: ENTER server_crash.\n")
     
     for i in range(len(list_of_bool_disabled)):
         list_of_bool_disabled[i] = True
-
-    debug()
 
 # Display this machine's current routing table.
 def print_routing_table():

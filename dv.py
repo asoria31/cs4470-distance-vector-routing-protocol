@@ -4,8 +4,7 @@ import sys
 import threading
 
 from sockets import read_topology_file_server_lines, read_topology_file_costs, start_server, create_initial_routing_table
-from sockets import send_updates_on_interval
-from sockets import packets_since_last_call, send_data_now, disable_connection, server_crash
+from sockets import update, send_data_on_interval, send_data_now, packets_since_last_call, disable_connection, server_crash
 from sockets import print_routing_table
 
 # [0] = dv.py | [1] = topology.txt | [2] = interval
@@ -59,7 +58,7 @@ start_server(server_id, top_file_all_lines[2:6])
 create_initial_routing_table(server_id)
 
 # Start sending out distance vector data over the given interval.
-interval_thread = threading.Thread(target=send_updates_on_interval,args=(rout_update_interval, server_id), daemon=True)
+interval_thread = threading.Thread(target=send_data_on_interval,args=(rout_update_interval, server_id), daemon=True)
 interval_thread.start()
 
 # Loop on the main thread for user commands.
@@ -92,8 +91,11 @@ while inUserLoop:
     elif len(next) == 2:
         match next[0]:
             case "disable":
-                # Pass the id of client to disable.
-                disable_connection(next[1])
+                try:
+                    # Pass the id of client to disable.
+                    disable_connection(next[1])
+                except ValueError:
+                    print("Server id must be an integer.")
             case _:
                 print("Command not recognized.")
 
@@ -101,7 +103,10 @@ while inUserLoop:
     elif len(next) == 4:
         match next[0]:
             case "update":
-                print("updateeeeeeeeeeeeee")
+                try:
+                    update(next[1], next[2], next[3], server_id)
+                except ValueError:
+                    print("Server ids must be integers and link cost must be an integer or 'inf'.")
             case _:
                 print("Command not recognized.")
 
