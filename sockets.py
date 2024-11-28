@@ -8,12 +8,10 @@ list_of_ids_from_clients = []       # All machine's will end up with the same li
 list_of_ips_from_clients = []
 list_of_ports_from_clients = []
 list_of_costs_from_clients = []     # Format: [ [client_id, cost], ... ] for the number of machines in the network.
-                                        # Ex: [ [2, 7] , [3, 4] , [4, 5] ] for 4 machines. (Self machine (1) is excluded.)
+                                        # Ex: [ [2, 7] , [3, 4] , [4, 5] ] for 4 machines. (Self machine (1) is excluded.)                                      
 list_of_bool_disabled = []          # All machine's will end up with a list of the same length that corresponds with the other lists.
-         
 
-# list_of_missed_interval_counts = [0, 0, 0, 0]
-
+this_server_id = 0
 packets_received = 0
 neighbors = []
 
@@ -35,10 +33,6 @@ def read_topology_file_server_lines(line):
     server_ip = line[1]
     server_port = int(line[2])
 
-    # print("server_id in read_topology_file_server_lines =", server_id)
-    # print("server_ip in read_topology_file_server_lines =", server_ip)
-    # print("server_port in read_topology_file_server_lines =", server_port)
-
     # Add to lists.
     list_of_ids_from_clients.append(server_id)
     list_of_ips_from_clients.append(server_ip)
@@ -52,7 +46,6 @@ def read_topology_file_costs(line):
     print("\nDebug: ENTER read_topology_file_costs.\n")
     line = line.split(" ") # server_id client_id cost
 
-    server_id = int(line[0])
     client_id = int(line[1])
     cost = int(line[2])
 
@@ -62,7 +55,7 @@ def read_topology_file_costs(line):
     # A client is a neighbor if it is originally read from the topology file.
     neighbors.append(client_id)
 
-
+# Create an initial routing table with just the link costs the server knows from the topology file.
 def create_initial_routing_table(server_id):
     print("\nDebug: ENTER create_initial_routing_table.\n")
 
@@ -81,6 +74,9 @@ def create_initial_routing_table(server_id):
 def start_server(server_id, top_file_server_lines):
     print("\nDebug: ENTER start_server.\n")
 
+    global this_server_id
+    this_server_id = server_id
+
     # In the list of server connections, find the server_id of this machine for its address and port info. 
     # (Server finds itself and sets up socket with the information.)
     for server_line in top_file_server_lines:
@@ -92,11 +88,8 @@ def start_server(server_id, top_file_server_lines):
             server_port = int(server_line[2])
             list_of_bool_disabled[server_id - 1] = True     # Disable self.
 
-
     print("Debug: server_ip =", server_ip)
     print("Debug: server_port =", server_port)
-
-    
 
     # Start a thread that the server can listen on
     server_thread = threading.Thread(target=_start_server, args=(server_ip, server_port), daemon=True)
@@ -111,11 +104,7 @@ def _start_server(server_ip, server_port):
 
     server_sock.bind((server_ip, server_port))
 
-    # server_sock.listen(5)
-
     while True:
-
-        print("Debug: Server waiting for data...")
 
         # Receive data whenever a client socket sends it.
         bytes_of_data, client_address = server_sock.recvfrom(1024)
@@ -126,8 +115,6 @@ def _start_server(server_ip, server_port):
         # Start a thread to process data so this function can continue listening.
         thread_to_process_data = threading.Thread(target=process_data, args=(from_server_id, recv_data_updates, client_address), daemon=True)
         thread_to_process_data.start()
-
-    server_socket.close()
 
 # Process the data taken from another machine. Update this machine's routing table. Update link costs. Update number of packets received.
 def process_data(from_server_id, recv_data, client_address):
@@ -141,19 +128,27 @@ def process_data(from_server_id, recv_data, client_address):
     debug()
 
     # Check if data being received is a link cost update. If so, update the link cost to the machine it is received from.
-    if len(recv_data) == 1:
+    if isinstance(recv_data, int):
         link_cost = int(recv_data)
         for cost_pair in list_of_costs_from_clients:
             if cost_pair[0] == from_server_id:
                 cost_pair[1] = link_cost
+
+        # The link cost from this server to the client data was received from is updated in routing table.
+        routing_table[this_server_id - 1][from_server_id - 1] = link_cost
+
         return
     
     debug()
     
-    # Else, the data being received is a routing taable.
+    # Else, the data being received is a routing table.
 
+    # Immediately update the row of the client the data is received from.
+    for i in range(len(routing_table)):
+        routing_table[from_server_id - 1][i] = recv_data[from_server_id - 1][i]
 
-    
+    # Using the data, calculate the shortest cost paths from this machine to all others using Bellman-Ford algorithm.
+    # --- NOT IMPLEMENTED ---
 
 # Update the link cost between this machine and another.
 def update(server_id1, server_id2, link_cost, this_server_id):
@@ -185,6 +180,9 @@ def update(server_id1, server_id2, link_cost, this_server_id):
         data_to_send = pickle.dumps([server_id1, link_cost])
         sending_socket.sendto(data_to_send, (list_of_ips_from_clients[server_id2 - 1], list_of_ports_from_clients[server_id2 - 1]))
 
+        # The link cost from this server to the client data was sent to is updated in routing table.
+        routing_table[this_server_id - 1][server_id2 - 1] = link_cost
+
     elif (server_id2 == this_server_id):
         for cost_pair in list_of_costs_from_clients:
             if cost_pair[0] == server_id1:
@@ -193,6 +191,9 @@ def update(server_id1, server_id2, link_cost, this_server_id):
         # Send updated link cost from this machine (server_id2) to the other machine (server_id1).
         data_to_send = pickle.dumps([server_id2, link_cost])
         sending_socket.sendto(data_to_send, (list_of_ips_from_clients[server_id1 - 1], list_of_ports_from_clients[server_id1 - 1]))
+
+        # The link cost from this server to the client data was sent to is updated in routing table.
+        routing_table[this_server_id - 1][server_id1 - 1] = link_cost
 
     # If neither server id is this machine's, don't update since only the participating machines should update.
     else:
@@ -250,6 +251,8 @@ def disable_connection(client_id):
 
     client_id = int(client_id)
 
+    debug()
+
     # If the machine to disable is not a neighbor.
     if (client_id not in neighbors):
         print("You can only disable connections between a NEIGHBORING machine.")
@@ -265,12 +268,18 @@ def disable_connection(client_id):
     except ValueError:
         print("The server id", client_id, "is not available or already disabled.")
 
+    debug()
+
 # Simulate server crash by disabling all connections.
 def server_crash():
     print("\nDebug: ENTER server_crash.\n")
+
+    debug()
     
     for i in range(len(list_of_bool_disabled)):
         list_of_bool_disabled[i] = True
+
+    debug()
 
 # Display this machine's current routing table.
 def print_routing_table():

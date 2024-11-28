@@ -18,12 +18,6 @@ with open(sys.argv[1], "r") as top_file:
 
 rout_update_interval = float(sys.argv[2])
 
-
-
-print(top_file_all_lines) # dglkhmg hglnghlllllllllllllllllllllllllllllllllllllllllllllllllllljhhjk 
-
-
-
 # Getting all info from topology file. ------------------------------------------------------------
 server_id = int(sys.argv[1].split(".")[0][15]) # Take the number in the server's topology text file name. Format: 'topology_server#.txt'.
 print("Debug: server_id =", server_id)
@@ -33,13 +27,6 @@ num_of_neighbors = top_file_all_lines[1]
 
 print("Debug: num_of_servers =", num_of_servers)
 print("Debug: num_of_neighbors =", num_of_neighbors)
-
-
-
-print(top_file_all_lines[2:6]) # dglkhmg hglnghlllllllllllllllllllllllllllllllllllllllllllllllllllljhhjk 
-
-
-
 
 # Read the server information line by line in the topology file.
 for i in range(2,6):
@@ -67,7 +54,7 @@ inUserLoop = True
 while inUserLoop:
     print("Execute a user command by typing.")
 
-    # Taking input from the user; commands are either 1, 2, or 4 values.
+    # Taking input from the user. Commands are either 1, 2, or 4 values.
     next = input().split(" ", 3)
 
     # If the command is a single string. (i.e. step, packets, display, and crash)
