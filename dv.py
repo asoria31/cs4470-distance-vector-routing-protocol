@@ -68,6 +68,7 @@ while inUserLoop:
                 print_routing_table()
             case "crash":
                 server_crash()
+                inUserLoop = False
             case "exit":
                 print("All threads terminating. Program closing.")
                 inUserLoop = False

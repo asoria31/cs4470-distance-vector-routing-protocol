@@ -280,13 +280,8 @@ def disable_connection(client_id):
 # Simulate server crash by disabling all connections.
 def server_crash():
     # print("\nDebug: ENTER server_crash.\n")
-
-    # debug()
-    
     for i in range(len(list_of_bool_disabled)):
         list_of_bool_disabled[i] = True
-
-    # debug()
 
 # Display this machine's current routing table.
 def print_routing_table():
