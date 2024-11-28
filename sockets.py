@@ -25,7 +25,7 @@ routing_table = [[-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, 
 
 # Get id, ip, and port of each machine line by line in the topology file.
 def read_topology_file_server_lines(line):
-    print("\nDebug: ENTER read_topology_file_server_lines.\n")
+    # print("\nDebug: ENTER read_topology_file_server_lines.\n")
     line = line.split(" ")
 
     # Server info of the current server being read from the topology file.
@@ -43,7 +43,7 @@ def read_topology_file_server_lines(line):
 
 # Get the cost between this machine and each neighbor line by line in the topology file.
 def read_topology_file_costs(line):
-    print("\nDebug: ENTER read_topology_file_costs.\n")
+    # print("\nDebug: ENTER read_topology_file_costs.\n")
     line = line.split(" ") # server_id client_id cost
 
     client_id = int(line[1])
@@ -57,7 +57,7 @@ def read_topology_file_costs(line):
 
 # Create an initial routing table with just the link costs the server knows from the topology file.
 def create_initial_routing_table(server_id):
-    print("\nDebug: ENTER create_initial_routing_table.\n")
+    # print("\nDebug: ENTER create_initial_routing_table.\n")
 
     for j in range(len(list_of_costs_from_clients)):
 
@@ -72,7 +72,7 @@ def create_initial_routing_table(server_id):
 
 # Get server's information then start a thread.
 def start_server(server_id, top_file_server_lines):
-    print("\nDebug: ENTER start_server.\n")
+    # print("\nDebug: ENTER start_server.\n")
 
     global this_server_id
     this_server_id = server_id
@@ -88,8 +88,8 @@ def start_server(server_id, top_file_server_lines):
             server_port = int(server_line[2])
             list_of_bool_disabled[server_id - 1] = True     # Disable self.
 
-    print("Debug: server_ip =", server_ip)
-    print("Debug: server_port =", server_port)
+    # print("Debug: server_ip =", server_ip)
+    # print("Debug: server_port =", server_port)
 
     # Start a thread that the server can listen on
     server_thread = threading.Thread(target=_start_server, args=(server_ip, server_port), daemon=True)
@@ -97,7 +97,7 @@ def start_server(server_id, top_file_server_lines):
 
 # Start the server on this machine.
 def _start_server(server_ip, server_port):
-    print("\nDebug: ENTER _start_server.\n")
+    # print("\nDebug: ENTER _start_server.\n")
     
     # Create UDP socket.
     server_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -118,14 +118,14 @@ def _start_server(server_ip, server_port):
 
 # Process the data taken from another machine. Update this machine's routing table. Update link costs. Update number of packets received.
 def process_data(from_server_id, recv_data, client_address):
-    print("\nDebug: ENTER process_data.\n")
+    # print("\nDebug: ENTER process_data.\n")
     print("RECEIVED DATA FROM SERVER", from_server_id)
 
     # Increment number of packets received.
     global packets_received
     packets_received += 1
 
-    debug()
+    # debug()
 
     # Check if data being received is a link cost update. If so, update the link cost to the machine it is received from.
     if isinstance(recv_data, int):
@@ -139,7 +139,7 @@ def process_data(from_server_id, recv_data, client_address):
 
         return
     
-    debug()
+    # debug()
     
     # Else, the data being received is a routing table.
 
@@ -152,7 +152,7 @@ def process_data(from_server_id, recv_data, client_address):
 
 # Update the link cost between this machine and another.
 def update(server_id1, server_id2, link_cost, this_server_id):
-    print("\nDebug: ENTER update.\n")
+    # print("\nDebug: ENTER update.\n")
 
     server_id1 = int(server_id1)
     server_id2 = int(server_id2)
@@ -163,10 +163,10 @@ def update(server_id1, server_id2, link_cost, this_server_id):
 
     # If the server ids are the same.
     if (server_id1 == server_id2):
-        print("Cannot update a machine's cost to itself.")
+        print("update", server_id1, server_id2, link_cost, ":: FAIL :: Cannot update a machine's cost to itself.")
         return
     
-    debug()
+    # debug()
     
     sending_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -197,19 +197,21 @@ def update(server_id1, server_id2, link_cost, this_server_id):
 
     # If neither server id is this machine's, don't update since only the participating machines should update.
     else:
-        print("This machine cannot update the link cost between two other machines. This server has id:", this_server_id)
+        print("update", server_id1, server_id2, link_cost, ":: FAIL :: This machine cannot update the link cost between two other machines. This server has id:", this_server_id)
 
     sending_socket.close()
 
-    debug()
+    print("update", server_id1, server_id2, link_cost,":: SUCCESS")
+
+    # debug()
 
 # A thread is created on this function in dv.py file. It will continuously send out this machine's routing table data at the update interval.
 def send_data_on_interval(rout_update_interval, server_id, isNow = False):
-    print("\nDebug: ENTER send_data_on_interval.\n")
+    # print("\nDebug: ENTER send_data_on_interval.\n")
 
     while True:
         time.sleep(rout_update_interval)
-        print("Debug: Interval time elapsed.")
+        # print("Debug: Interval time elapsed.")
 
         # For every machine we can communicate with, ...
         for i in range(len(list_of_ids_from_clients)):
@@ -232,6 +234,7 @@ def send_data_on_interval(rout_update_interval, server_id, isNow = False):
         
         # If data was sent with send_data_now function, don't stay in the loop.
         if isNow:
+            print("step :: SUCCESS")
             break
 
 # Send data immediately.
@@ -244,18 +247,19 @@ def packets_since_last_call():
     global packets_received
     print("This machine has received", packets_received, "packet(s) since the last check in.")
     packets_received = 0
+    print("packets :: SUCCESS")
 
 # Remove connection and stop sending data to the given client.
 def disable_connection(client_id):
-    print("\nDebug: ENTER disable_connection.\n")
+    # print("\nDebug: ENTER disable_connection.\n")
 
     client_id = int(client_id)
 
-    debug()
+    # debug()
 
     # If the machine to disable is not a neighbor.
     if (client_id not in neighbors):
-        print("You can only disable connections between a NEIGHBORING machine.")
+        print("disable", client_id, ":: FAIL :: You can only disable connections between a NEIGHBORING machine.")
         return
     
     # Find the index of the client and disable the connection in the boolean list.
@@ -264,22 +268,24 @@ def disable_connection(client_id):
 
         list_of_bool_disabled[index_of_client] = True
 
+        print("disable", client_id, ":: SUCCESS")
+
     # If the machine to disable's server id is invalid. (As long as this machine is not sending data to it, it is invalid.)
     except ValueError:
-        print("The server id", client_id, "is not available or already disabled.")
+        print("disable", client_id, ":: FAIL :: The server id", client_id, "is not available or already disabled.")
 
-    debug()
+    # debug()
 
 # Simulate server crash by disabling all connections.
 def server_crash():
-    print("\nDebug: ENTER server_crash.\n")
+    # print("\nDebug: ENTER server_crash.\n")
 
-    debug()
+    # debug()
     
     for i in range(len(list_of_bool_disabled)):
         list_of_bool_disabled[i] = True
 
-    debug()
+    # debug()
 
 # Display this machine's current routing table.
 def print_routing_table():
@@ -297,6 +303,8 @@ def print_routing_table():
         x += "]\n"
 
     print(x)
+
+    print("display :: SUCCESS")
 
 def debug():
 

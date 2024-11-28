@@ -20,13 +20,13 @@ rout_update_interval = float(sys.argv[2])
 
 # Getting all info from topology file. ------------------------------------------------------------
 server_id = int(sys.argv[1].split(".")[0][15]) # Take the number in the server's topology text file name. Format: 'topology_server#.txt'.
-print("Debug: server_id =", server_id)
+# print("Debug: server_id =", server_id)
 
 num_of_servers = top_file_all_lines[0]
 num_of_neighbors = top_file_all_lines[1]
 
-print("Debug: num_of_servers =", num_of_servers)
-print("Debug: num_of_neighbors =", num_of_neighbors)
+# print("Debug: num_of_servers =", num_of_servers)
+# print("Debug: num_of_neighbors =", num_of_neighbors)
 
 # Read the server information line by line in the topology file.
 for i in range(2,6):
@@ -82,7 +82,7 @@ while inUserLoop:
                     # Pass the id of client to disable.
                     disable_connection(next[1])
                 except ValueError:
-                    print("Server id must be an integer.")
+                    print("disable", next[1], ":: FAIL :: Server id must be an integer.")
             case _:
                 print("Command not recognized.")
 
@@ -93,7 +93,7 @@ while inUserLoop:
                 try:
                     update(next[1], next[2], next[3], server_id)
                 except ValueError:
-                    print("Server ids must be integers and link cost must be an integer or 'inf'.")
+                    print("update", next[1], next[2], next[3], ":: FAIL :: Server ids must be integers and link cost must be an integer or 'inf'.")
             case _:
                 print("Command not recognized.")
 
