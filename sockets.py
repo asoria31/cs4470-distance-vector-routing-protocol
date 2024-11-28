@@ -198,6 +198,7 @@ def update(server_id1, server_id2, link_cost, this_server_id):
     # If neither server id is this machine's, don't update since only the participating machines should update.
     else:
         print("update", server_id1, server_id2, link_cost, ":: FAIL :: This machine cannot update the link cost between two other machines. This server has id:", this_server_id)
+        return
 
     sending_socket.close()
 

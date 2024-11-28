@@ -72,7 +72,7 @@ while inUserLoop:
                 print("All threads terminating. Program closing.")
                 inUserLoop = False
             case _:
-                print("Command not recognized.")
+                print("FAIL :: Command not recognized.")
             
     # If the command is two values. (i.e. disable <server-id>)
     elif len(next) == 2:
@@ -84,7 +84,7 @@ while inUserLoop:
                 except ValueError:
                     print("disable", next[1], ":: FAIL :: Server id must be an integer.")
             case _:
-                print("Command not recognized.")
+                print("FAIL :: Command not recognized.")
 
     # If the command is four values. (i.e. update <server-id1> <server-id2> <link cost>)
     elif len(next) == 4:
@@ -95,9 +95,9 @@ while inUserLoop:
                 except ValueError:
                     print("update", next[1], next[2], next[3], ":: FAIL :: Server ids must be integers and link cost must be an integer or 'inf'.")
             case _:
-                print("Command not recognized.")
+                print("FAIL :: Command not recognized.")
 
     else:
-        print("Command not recognized.")
+        print("FAIL :: Command not recognized. Check number of arguments")
 
     
